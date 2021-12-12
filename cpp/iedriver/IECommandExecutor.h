@@ -246,6 +246,7 @@ class IECommandExecutor : public CWindowImpl<IECommandExecutor>, public IElement
   void CreateWaitThread(const std::string& deferred_response,
                         const bool is_deferred_command_execution);
   void CreateDelayPostMessageThread(const DWORD delay_time,
+                                    const LPARAM window_handles,
                                     const HWND window_handle,
                                     const UINT message_to_post);
   bool IsCommandValidWithAlertPresent(void);

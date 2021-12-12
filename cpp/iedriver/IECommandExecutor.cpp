@@ -66,6 +66,7 @@ struct DelayPostMessageThreadContext {
   HWND window_handle;
   DWORD delay;
   UINT msg;
+  LPARAM window_handles;
 };
 
 LRESULT IECommandExecutor::OnCreate(UINT uMsg,
@@ -287,8 +288,10 @@ LRESULT IECommandExecutor::OnAfterNewWindow(UINT uMsg,
   if (wParam > 0) {
     LOG(DEBUG) << "Creating thread and reposting message.";
     this->CreateDelayPostMessageThread(static_cast<DWORD>(wParam),
+                                       lParam,
                                        this->m_hWnd,
                                        WD_AFTER_NEW_WINDOW);
+  } else {
     if (lParam > 0) {
       // a new window is created from Edge in IEMode
       BrowserHandle browser_wrapper;
@@ -364,7 +367,7 @@ LRESULT IECommandExecutor::OnAfterNewWindow(UINT uMsg,
         this->AddManagedBrowser(new_window_wrapper);
       }
     }
-  } else {
+
     LOG(DEBUG) << "Clearing await new window flag";
     this->is_awaiting_new_window_ = false;
   }
@@ -891,10 +894,11 @@ unsigned int WINAPI IECommandExecutor::DelayPostMessageThreadProc(LPVOID lpParam
   HWND window_handle = context->window_handle;
   DWORD sleep_time = context->delay;
   UINT message_to_post = context->msg;
+  LPARAM window_handles = context->window_handles;
   delete context;
 
   ::Sleep(sleep_time);
-  ::PostMessage(window_handle, message_to_post, NULL, NULL);
+  ::PostMessage(window_handle, message_to_post, NULL, window_handles);
   return 0;
 }
 
@@ -1166,12 +1170,14 @@ void IECommandExecutor::CreateWaitThread(const std::string& deferred_response,
 }
 
 void IECommandExecutor::CreateDelayPostMessageThread(const DWORD delay_time,
+                                                     const LPARAM window_handles,
                                                      const HWND window_handle,
                                                      const UINT message_to_post) {
   DelayPostMessageThreadContext* context = new DelayPostMessageThreadContext;
   context->delay = delay_time;
   context->window_handle = window_handle;
   context->msg = message_to_post;
+  context->window_handles = window_handles;
   unsigned int thread_id = 0;
   HANDLE thread_handle = reinterpret_cast<HANDLE>(_beginthreadex(NULL,
                                                                  0,
